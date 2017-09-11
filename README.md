@@ -11,8 +11,8 @@ Solutionista löytyy kaksi projekti, online ja offline. Online versiosta jäi ra
 Datasta muodostuva csv:stä tuli ~450 meganen.
 
 Ohjeet ajamiseen:
--Solution auki ja OfflineDataGetter projektin päältä hiiren väärää ja "Set as StartUp Project"
--Luettavat tiedostot haetaan käännöskansiosta, eli kannattaa buildata tässä kohtaa, Build->Build Solution
--Hae OneDrivestä data "kaikkisamassazipissa.zip". Pura sen sisältö tänne: ...\ASE-6070-R1\DataYhdistin\OfflineDataGetter\bin\Debug\data
--Oletuksena csv generoituu C:\temp sijaintiin ja jos sitä ei ole olemas pääsee poikkeus karkuun, eli tee semmoinen tai muuta polkua koodista
--Paina Start
+- Solution auki ja OfflineDataGetter projektin päältä hiiren väärää ja "Set as StartUp Project"
+- Luettavat tiedostot haetaan käännöskansiosta, eli kannattaa buildata tässä kohtaa, Build->Build Solution
+- Hae OneDrivestä data "kaikkisamassazipissa.zip". Pura sen sisältö tänne: ...\ASE-6070-R1\DataYhdistin\OfflineDataGetter\bin\Debug\data
+- Oletuksena csv generoituu C:\temp sijaintiin ja jos sitä ei ole olemas pääsee poikkeus karkuun, eli tee semmoinen tai muuta polkua koodista
+- Paina Start

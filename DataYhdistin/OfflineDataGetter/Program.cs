@@ -20,38 +20,61 @@ namespace OfflineDataGetter
         {
             string path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "data");
 
-            // TODO: Sorting might be needed to get order right
             string[] files = Directory.GetFiles(path);
+            Object o = new Object();
 
             var dataAsList = new List<DataItem>();
             Console.WriteLine("Found " + files.Length + " from directory.");
             Console.WriteLine("Started reading files...");
             int counter = 0;
-            foreach (var filename in files)
+            Parallel.ForEach(files, (filename) =>
             {
                 var file = File.ReadAllBytes(filename);
-                //Decompress file if file name ends as that
+                // Decompress file if file name ends as that
                 if (filename.Substring(filename.Length - 3) == ".gz")
                 {
                     file = Decompress(file);
                 }
                 else
                 {
-                    Console.WriteLine("Note: read uncompressed file " + filename);
+                    //Console.WriteLine("Note: read uncompressed file " + filename);
                 }
                 var dataAsString = System.Text.Encoding.Default.GetString(file);
-                ReadFile(dataAsString, dataAsList, filename);
+                ReadFile(dataAsString, dataAsList, filename, o);
                 ++counter;
                 if (counter % 200 == 0)
                 {
                     Console.WriteLine(counter + " files read...");
                 }
-            }
+            });
+
+            // Calculates average to for every hour
+            // ~TODO final magnetic value will be NaN is even single value in that hour is Nan
+            var hourlyAverages = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
+                .Select(i => (new DataItemString
+                {
+                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0).ToString("yyyyMMdd-HH"),
+                    MagneticValueX = i.Average(k => k.MagneticValueX).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueY = i.Average(k => k.MagneticValueY).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueZ = i.Average(k => k.MagneticValueZ).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueF = i.Average(k => k.MagneticValueF).ToString("0.00", CultureInfo.InvariantCulture)
+                }));
+            hourlyAverages = hourlyAverages.OrderBy(n => n.Date);
+            IEnumerable<DataItemString> dataAsEnumerable = hourlyAverages;
+
+            //var minuteValues = dataAsList.Select(i => (new DataItemString
+            //{
+            //    Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
+            //    MagneticValueX = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
+            //    MagneticValueY = i.MagneticValueY.ToString("0.00", CultureInfo.InvariantCulture),
+            //    MagneticValueZ = i.MagneticValueZ.ToString("0.00", CultureInfo.InvariantCulture),
+            //    MagneticValueF = i.MagneticValueF.ToString("0.00", CultureInfo.InvariantCulture)
+            //}));
+            //minuteValues = minuteValues.OrderBy(n => n.Date);
+            //IEnumerable<DataItemString> dataAsEnumerable = minuteValues;
 
             Console.WriteLine("All files read. Starting to create csv file.");
-            IEnumerable<DataItem> dataAsEnumerable = dataAsList;
-
-            using (TextWriter writer = new StreamWriter(@"C:\temp\onlinetest.csv"))
+            using (TextWriter writer = new StreamWriter(@"C:\temp\offilentest.csv"))
             {
                 var csv = new CsvWriter(writer);
                 csv.Configuration.Encoding = Encoding.UTF8;
@@ -59,7 +82,6 @@ namespace OfflineDataGetter
             }
             Console.WriteLine("Csv file saved! I'am done!");
             Console.ReadLine();
-
         }
 
         static byte[] Decompress(byte[] gzip)
@@ -87,8 +109,9 @@ namespace OfflineDataGetter
             }
         }
 
-        static void ReadFile(string data, List<DataItem> dataAsList, string fileName)
+        static void ReadFile(string data, List<DataItem> dataAsList, string fileName, Object o)
         {
+            var invalidValues = new List<double>() { 88888.80, 99999.00 , 999.99 };
             var lines = data.Split("\r\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
@@ -100,30 +123,60 @@ namespace OfflineDataGetter
                 {
                     continue;
                 }
-                
+
                 // Without proper date data is not very useful, skip file
-                if(!DateTime.TryParse(dateString, out DateTime date))
+                if (!DateTime.TryParse(dateString, out DateTime date))
                 {
                     Console.WriteLine("DateTime parse failed at file" + fileName);
                     return;
                 }
 
-                var magneticvalueX = stringArray[3];
-                var magneticvalueY = stringArray[4];
-                var magneticvalueZ = stringArray[5];
-                var magneticvalueF = stringArray[6];
+                var magneticvalueX = double.Parse(stringArray[3], CultureInfo.InvariantCulture);
+                var magneticvalueY = double.Parse(stringArray[4], CultureInfo.InvariantCulture);
+                var magneticvalueZ = double.Parse(stringArray[5], CultureInfo.InvariantCulture);
+                var magneticvalueF = double.Parse(stringArray[6], CultureInfo.InvariantCulture);
 
-                dataAsList.Add(new DataItem()
+                // Validate data
+                if (invalidValues.Contains(magneticvalueX)
+                    || invalidValues.Contains(magneticvalueY)
+                    || invalidValues.Contains(magneticvalueZ)
+                    || magneticvalueY < 0
+                    || magneticvalueX < 0
+                    || magneticvalueY < 0)
                 {
-                    Date = date.ToString("yyyyMMdd-HHmmss"),
-                    MagneticValueX = magneticvalueX,
-                    MagneticValueY = magneticvalueY,
-                    MagneticValueZ = magneticvalueZ,
-                    MagneticValueF = magneticvalueF
-                });
+                    magneticvalueX = double.NaN;
+                    magneticvalueY = double.NaN;
+                    magneticvalueZ = double.NaN;
+                    magneticvalueF = double.NaN;
+                }
+
+                lock (o) {
+                    dataAsList.Add(new DataItem()
+                    {
+                        Date = date,
+                        MagneticValueX = magneticvalueX,
+                        MagneticValueY = magneticvalueY,
+                        MagneticValueZ = magneticvalueZ,
+                        MagneticValueF = magneticvalueF
+                    });
+                }
             }
         }
+        
         public class DataItem
+        {
+            public DateTime Date { get; set; }
+
+            public double MagneticValueX { get; set; }
+
+            public double MagneticValueY { get; set; }
+
+            public double MagneticValueZ { get; set; }
+
+            public double MagneticValueF { get; set; }
+        }
+
+        public class DataItemString
         {
             public string Date { get; set; }
 

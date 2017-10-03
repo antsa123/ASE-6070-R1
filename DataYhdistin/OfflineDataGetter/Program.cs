@@ -48,30 +48,9 @@ namespace OfflineDataGetter
                 }
             });
 
-            // Calculates average to for every hour
-            // ~TODO final magnetic value will be NaN is even single value in that hour is Nan
-            var hourlyAverages = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
-                .Select(i => (new DataItemString
-                {
-                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0).ToString("yyyyMMdd-HH"),
-                    MagneticValueX = i.Average(k => k.MagneticValueX).ToString("0.00", CultureInfo.InvariantCulture),
-                    MagneticValueY = i.Average(k => k.MagneticValueY).ToString("0.00", CultureInfo.InvariantCulture),
-                    MagneticValueZ = i.Average(k => k.MagneticValueZ).ToString("0.00", CultureInfo.InvariantCulture),
-                    MagneticValueF = i.Average(k => k.MagneticValueF).ToString("0.00", CultureInfo.InvariantCulture)
-                }));
-            hourlyAverages = hourlyAverages.OrderBy(n => n.Date);
-            IEnumerable<DataItemString> dataAsEnumerable = hourlyAverages;
-
-            //var minuteValues = dataAsList.Select(i => (new DataItemString
-            //{
-            //    Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
-            //    MagneticValueX = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
-            //    MagneticValueY = i.MagneticValueY.ToString("0.00", CultureInfo.InvariantCulture),
-            //    MagneticValueZ = i.MagneticValueZ.ToString("0.00", CultureInfo.InvariantCulture),
-            //    MagneticValueF = i.MagneticValueF.ToString("0.00", CultureInfo.InvariantCulture)
-            //}));
-            //minuteValues = minuteValues.OrderBy(n => n.Date);
-            //IEnumerable<DataItemString> dataAsEnumerable = minuteValues;
+            //IEnumerable<DataItemString> dataAsEnumerable = GetMinuteValueIEnumerable(dataAsList);
+            //IEnumerable<DataItemString> dataAsEnumerable = GetHourlyAveragesIEnumerable(dataAsList);
+            IEnumerable<DataItemString> dataAsEnumerable = GetHourlyDetivateIEnumerable(dataAsList);
 
             Console.WriteLine("All files read. Starting to create csv file.");
             using (TextWriter writer = new StreamWriter(@"C:\temp\offilentest.csv"))
@@ -139,10 +118,8 @@ namespace OfflineDataGetter
                 // Validate data
                 if (invalidValues.Contains(magneticvalueX)
                     || invalidValues.Contains(magneticvalueY)
-                    || invalidValues.Contains(magneticvalueZ)
                     || magneticvalueY < 0
-                    || magneticvalueX < 0
-                    || magneticvalueY < 0)
+                    || magneticvalueX < 0)
                 {
                     magneticvalueX = double.NaN;
                     magneticvalueY = double.NaN;
@@ -161,6 +138,87 @@ namespace OfflineDataGetter
                     });
                 }
             }
+        }
+
+        static IEnumerable<DataItemString> GetMinuteValueIEnumerable(IEnumerable<DataItem> dataAsList)
+        {
+            var minuteValues = dataAsList.Select(i => (new DataItemString
+            {
+                Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
+                MagneticValueX = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueY = i.MagneticValueY.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueZ = i.MagneticValueZ.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueF = i.MagneticValueF.ToString("0.00", CultureInfo.InvariantCulture)
+            }));
+            minuteValues = minuteValues.OrderBy(n => n.Date);
+            return minuteValues;
+        }
+
+        static IEnumerable<DataItemString> GetHourlyAveragesIEnumerable(IEnumerable<DataItem> dataAsList)
+        {
+            // Calculates average to for every hour
+            // ~TODO final magnetic value will be NaN is even single value in that hour is Nan
+            var hourlyAverages = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
+                .Select(i => (new DataItemString
+                {
+                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0).ToString("yyyyMMdd-HH"),
+                    MagneticValueX = i.Average(k => k.MagneticValueX).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueY = i.Average(k => k.MagneticValueY).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueZ = i.Average(k => k.MagneticValueZ).ToString("0.00", CultureInfo.InvariantCulture),
+                    MagneticValueF = i.Average(k => k.MagneticValueF).ToString("0.00", CultureInfo.InvariantCulture)
+                }));
+            hourlyAverages = hourlyAverages.OrderBy(n => n.Date);
+            return hourlyAverages;
+        }
+
+        static IEnumerable<DataItemString> GetHourlyDetivateIEnumerable(IEnumerable<DataItem> dataAsList)
+        {
+            var hourlyAverages = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
+                .Select(i => (new DataItem
+                {
+                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0),
+                    MagneticValueX = i.Average(k => k.MagneticValueX),
+                    MagneticValueY = i.Average(k => k.MagneticValueY),
+                    MagneticValueZ = i.Average(k => k.MagneticValueZ),
+                    MagneticValueF = i.Average(k => k.MagneticValueF)
+                }));
+
+            hourlyAverages = hourlyAverages.OrderBy(n => n.Date);
+
+            var derivatesDataItems = new List<DataItem>();
+            int j = 0;
+            DataItem previousDataItem = new DataItem();
+            foreach (var value in hourlyAverages)
+            {
+                if (j == 0)
+                {
+                    previousDataItem = value;
+                    ++j;
+                    continue;
+                }
+
+                derivatesDataItems.Add(new DataItem
+                {
+                    Date = previousDataItem.Date,
+                    MagneticValueX = Math.Abs(previousDataItem.MagneticValueX - value.MagneticValueX),
+                    MagneticValueY = Math.Abs(previousDataItem.MagneticValueY - value.MagneticValueY),
+                    MagneticValueZ = Math.Abs(previousDataItem.MagneticValueZ - value.MagneticValueZ),
+                    MagneticValueF = Math.Abs(previousDataItem.MagneticValueF - value.MagneticValueF),
+                });
+                previousDataItem = value;
+                ++j;
+            }
+
+            var derivatesDataItemStrings = derivatesDataItems.Select(i => (new DataItemString
+            {
+                Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
+                MagneticValueX = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueY = i.MagneticValueY.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueZ = i.MagneticValueZ.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueF = i.MagneticValueF.ToString("0.00", CultureInfo.InvariantCulture)
+            }));
+
+            return derivatesDataItemStrings;
         }
         
         public class DataItem

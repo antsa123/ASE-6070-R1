@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using CsvHelper;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace OfflineDataGetter
 {
@@ -50,7 +51,9 @@ namespace OfflineDataGetter
 
             //IEnumerable<DataItemString> dataAsEnumerable = GetMinuteValueIEnumerable(dataAsList);
             //IEnumerable<DataItemString> dataAsEnumerable = GetHourlyAveragesIEnumerable(dataAsList);
-            IEnumerable<DataItemString> dataAsEnumerable = GetHourlyDetivateIEnumerable(dataAsList);
+            // IEnumerable<DataItemString> dataAsEnumerable = GetHourlyDetivateIEnumerable(dataAsList);
+            //IEnumerable<DataItemString> dataAsEnumerable = GetHourlyMaxDetivateIEnumerable(dataAsList);
+            IEnumerable<SigleValueString> dataAsEnumerable = GetHourlyMaxSingleDetivateIEnumerable(dataAsList);
 
             Console.WriteLine("All files read. Starting to create csv file.");
             using (TextWriter writer = new StreamWriter(@"C:\temp\offilentest.csv"))
@@ -103,7 +106,7 @@ namespace OfflineDataGetter
                     continue;
                 }
 
-                // Without proper date data is not very useful, skip file
+                // Without proper date, data is not very useful, skip file
                 if (!DateTime.TryParse(dateString, out DateTime date))
                 {
                     Console.WriteLine("DateTime parse failed at file" + fileName);
@@ -220,7 +223,64 @@ namespace OfflineDataGetter
 
             return derivatesDataItemStrings;
         }
-        
+
+        static IEnumerable<DataItemString> GetHourlyMaxDetivateIEnumerable(IEnumerable<DataItem> dataAsList)
+        {
+            var maxDifferenceInHour = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
+                .Select(i => new DataItem
+                {
+                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0),
+                    MagneticValueX = i.Max(k => k.MagneticValueX) - i.Select(k => k.MagneticValueX).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueY = i.Max(k => k.MagneticValueY) - i.Select(k => k.MagneticValueY).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueZ = i.Max(k => k.MagneticValueZ) - i.Select(k => k.MagneticValueZ).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueF = i.Max(k => k.MagneticValueF) - i.Select(k => k.MagneticValueF).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min()
+                });
+
+            maxDifferenceInHour = maxDifferenceInHour.OrderBy(n => n.Date);
+
+            var derivatesDataItemStrings = maxDifferenceInHour.Select(i => (new DataItemString
+            {
+                Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
+                MagneticValueX = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueY = i.MagneticValueY.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueZ = i.MagneticValueZ.ToString("0.00", CultureInfo.InvariantCulture),
+                MagneticValueF = i.MagneticValueF.ToString("0.00", CultureInfo.InvariantCulture)
+            }));
+
+            return derivatesDataItemStrings;
+        }
+
+        static IEnumerable<SigleValueString> GetHourlyMaxSingleDetivateIEnumerable(IEnumerable<DataItem> dataAsList)
+        {
+            var maxDifferenceInHour = dataAsList.GroupBy(n => new { n.Date.Year, n.Date.Month, n.Date.Day, n.Date.Hour })
+                .Select(i => new DataItem
+                {
+                    Date = new DateTime(i.Key.Year, i.Key.Month, i.Key.Day, i.Key.Hour, 0, 0),
+                    MagneticValueX = i.Max(k => k.MagneticValueX) - i.Select(k => k.MagneticValueX).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueY = i.Max(k => k.MagneticValueY) - i.Select(k => k.MagneticValueY).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueZ = i.Max(k => k.MagneticValueZ) - i.Select(k => k.MagneticValueZ).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min(),
+                    MagneticValueF = i.Max(k => k.MagneticValueF) - i.Select(k => k.MagneticValueF).Where(j => !double.IsNaN(j)).DefaultIfEmpty().Min()
+                });
+
+            maxDifferenceInHour = maxDifferenceInHour.OrderBy(n => n.Date);
+
+
+            var singleDataValues = maxDifferenceInHour.Select(i => new SigleValue
+            {
+                Date = i.Date,
+                MagneticValue = new double[] { i.MagneticValueX, i.MagneticValueY }.Max()
+            });
+
+
+            var derivatesDataItemStrings = maxDifferenceInHour.Select(i => new SigleValueString
+            {
+                Date = new DateTime(i.Date.Year, i.Date.Month, i.Date.Day, i.Date.Hour, i.Date.Minute, 0).ToString("yyyyMMdd-HHmm"),
+                MagneticValue = i.MagneticValueX.ToString("0.00", CultureInfo.InvariantCulture),
+            });
+
+            return derivatesDataItemStrings;
+        }
+
         public class DataItem
         {
             public DateTime Date { get; set; }
@@ -245,6 +305,18 @@ namespace OfflineDataGetter
             public string MagneticValueZ { get; set; }
 
             public string MagneticValueF { get; set; }
+        }
+
+        public class SigleValue
+        {
+            public DateTime Date { get; set; }
+            public double MagneticValue { get; set; }
+        }
+
+        public class SigleValueString
+        {
+            public string Date { get; set; }
+            public string MagneticValue { get; set; }
         }
     }
 }

@@ -35,9 +35,9 @@ def parse2np(fileobject, horizon):
     return np.asarray(numeric).reshape((horizon * 24,))
 
 def train2np(filepath, window = 48, horizon = 1, NaN_handling="linear_interp"):
-    """Lukee tiedoston polusta ja parsii tiedot numpy taulukoihin, jotka voi syöttää sklearn mallille.
+    """Lukee tiedoston polusta ja parsii tiedot numpy taulukoihin, jotka voi syattaa sklearn mallille.
     Input: filepath on tiedoston polku merkkijonona. Kayta suhteellista polkua.
-           window kertoo montako edellistä tuntia käytetään ennustukseen. Kokonaisluku.
+           window kertoo montako edellista tuntia kaytetaan ennustukseen. Kokonaisluku.
            horizon kertoo montako seuraavaa tuntia ennustetaan kerralla. Kokonaisluku."""
     arr = np.loadtxt(filepath, delimiter=',', skiprows=1, usecols=1)
     if NaN_handling == "linear_interp":
@@ -58,7 +58,7 @@ def train2np(filepath, window = 48, horizon = 1, NaN_handling="linear_interp"):
 
 
 
-## Suppeat toiminnallisuuden pikatestit, tehdään, jos ajetaan mainina:
+## Suppeat toiminnallisuuden pikatestit, tehdaan, jos ajetaan mainina:
 if __name__ == "__main__":
     filu = open("Esimerkki.txt")
     array = parse2np(filu, 2)

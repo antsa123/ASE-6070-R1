@@ -10,7 +10,9 @@ Zipistä löytyy joka minuutin data csv:nä, turhan iso käsiteltäväksi.
 
 tunninkeskiavrot.csv sisältää keskiarvot magneettikentän arvoista yksikkönä nT. Arvo on NaN jos yksikin arvo tunnin sisällä on NaN (korjataan joskus jos jaksetaan).
 
-tunninkeskiarvoistaderivaatta.csv on suoraan laskettu derivaatta tunninkeskiarvoista. Yksikkönä nT/h. Ilmatieteen "kuluttaja data" käyttää yksikkönä 0.01 nT/s, mutta jos meidän datan tuohon muuttaa, niin tulee meidän luvuista kovin pieniä (fmi ei taida näin reippaasti dataa keskiarvoistaa tjms.). Pikaisella vilkaisulla tuo meidän nT/h istuu suurusluokaltaan noin suurinpiirtein fmi:n 0.01 nT/s lukuihin, joten mallia varten kelvannee tämä. 
+tunninkeskiarvoistaderivaatta.csv on suoraan laskettu derivaatta tunninkeskiarvoista. Yksikkönä nT/h. Ilmatieteen "kuluttaja data" käyttää yksikkönä 0.01 nT/s, mutta jos meidän datan tuohon muuttaa, niin tulee meidän luvuista kovin pieniä (fmi ei taida näin reippaasti dataa keskiarvoistaa tjms.). Pikaisella vilkaisulla tuo meidän nT/h istuu suurusluokaltaan noin suurinpiirtein fmi:n 0.01 nT/s lukuihin, joten mallia varten kelvannee tämä.
+
+tunninminmax.csv datassa on jokaisen tunnin maksimi arvon ja minimi arvon erotus. Datassa oleva luku on joko X akselilta tai Y akselilta  riippuen siitä kumpi on isompi.
 
 ## DataYhdistin
 

@@ -28,8 +28,8 @@ def predict_sequence(model, window_data, horizon = 48, prediction_len = 1):
     """Testaamiseen kaytetty funktio, jolla ennustetaan window_datasta horizonin verran eteenpain.
        Voidaan kayttaa myos webservicessa palauttamaan haluttu ennuste.
     Input: model sklearn tai vastaavan rajapinnan omaava objekti ennustamiseen
-           window_data numpy taulukko, jossa ennustamiseen käytetty data.
-           horizon kokonaisluku, joka kertoo montako tuntia eteenpäin ennustetaan
+           window_data numpy taulukko, jossa ennustamiseen kaytetty data.
+           horizon kokonaisluku, joka kertoo montako tuntia eteenpain ennustetaan
            prediction_len kokonaisluku, joka kertoo montako tuntia eteenpain ennustetaan kerralla."""
     results = np.zeros((horizon * prediction_len,))
     current = np.copy(window_data)
@@ -40,7 +40,7 @@ def predict_sequence(model, window_data, horizon = 48, prediction_len = 1):
     return results
 
 def predict_full_data(model, train_data, horizon = 48, prediction_len = 1):
-    """Ennustaa jokaisen opetusdataesimerkin jälkeen horizonin verran eteenpäin"""
+    """Ennustaa jokaisen opetusdataesimerkin jalkeen horizonin verran eteenpain"""
     predictions = [np.zeros(train_data[0].shape)]
     for i in range(len(train_data)):
         pred = predict_sequence(model, train_data[i], horizon, prediction_len)
@@ -49,11 +49,11 @@ def predict_full_data(model, train_data, horizon = 48, prediction_len = 1):
 
 
 def plot_results(names, models, train_data, window_size = 48, horizon = 48):
-    """Plotataan ennustetta halutun verran eteenpäin valituista pisteistä. Testataan mallin toimintaa
+    """Plotataan ennustetta halutun verran eteenpain valituista pisteista. Testataan mallin toimintaa
     Input: names, mallien nimet merkkijonoina listassa.
            models, sklearn tai vastaavat mallit
            train_data aikasarja data, jolla testataan ja johon verrataan
-           window_size kokonaisluku, joka kertoo montako tuntia käytetään ennustuksessa
+           window_size kokonaisluku, joka kertoo montako tuntia kaytetaan ennustuksessa
            horizon """
     predicted_sequences = {}
     for name, model in zip(names, models):
@@ -73,7 +73,7 @@ def plot_results(names, models, train_data, window_size = 48, horizon = 48):
 
 
 if __name__ == "__main__":
-    ## Alustetaan mallit listaan. Mallien tulee täyttää sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
+    ## Alustetaan mallit listaan. Mallien tulee tayttaa sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
     models = [LinearRegression()]#, RandomForestRegressor(n_estimators=50, verbose=10)]
     names = ["LR"]#, "RF"]
     print("Reading data")

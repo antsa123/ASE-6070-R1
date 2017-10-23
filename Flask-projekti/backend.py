@@ -1,17 +1,20 @@
 from flask import Flask, render_template, request
-import json
+import json, urllib2
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 
 
 @app.route('/')
 def index():
     # Start page
-    return render_template("TAHAN SUHTEELLINEN POLKU PAASIVUN HTML FILUUN")
+    return render_template('index.html')
 
 @app.route('/weather')
 def get_weather_info():
-    pass
+	# Palauttaa saatiedot .xml-tiedostossa
+	return urllib2.urlopen("https://www.yr.no/place/Finland/S%C3%B6dra_Finland/Nurmij%C3%A4rvi/forecast_hour_by_hour.xml").read()
+
+    
 
 
 @app.route('/auroras')

@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-import json, urllib2
+import json, urllib.request
 
 app = Flask(__name__, static_url_path='')
 
@@ -11,8 +11,8 @@ def index():
 
 @app.route('/weather')
 def get_weather_info():
-	# Palauttaa saatiedot .xml-tiedostossa
-	return urllib2.urlopen("https://www.yr.no/place/Finland/S%C3%B6dra_Finland/Nurmij%C3%A4rvi/forecast_hour_by_hour.xml").read()
+    # Palauttaa saatiedot .xml-tiedostossa
+    return urllib.request.urlopen("https://www.yr.no/place/Finland/S%C3%B6dra_Finland/Nurmij%C3%A4rvi/forecast_hour_by_hour.xml").read()
 
 
 @app.route('/auroras')
@@ -24,3 +24,5 @@ def get_auroras():
 def get_auroras_prediction():
     return "{{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},}"
 
+if __name__ == "__main__":
+    app.run(port=5000)

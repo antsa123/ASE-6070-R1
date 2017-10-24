@@ -74,11 +74,11 @@ def plot_results(names, models, train_data, window_size = 48, horizon = 48):
 
 if __name__ == "__main__":
     ## Alustetaan mallit listaan. Mallien tulee tayttaa sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
-    models = [LinearRegression()]#, RandomForestRegressor(n_estimators=50, verbose=10)]
-    names = ["LR"]#, "RF"]
+    models = [LinearRegression(), RandomForestRegressor(n_estimators=10, verbose=10, n_jobs=1)]
+    names = ["LR", "RF"]
     print("Reading data")
     ## Haetaan opetusdata tiedostosta
-    X, y = train2np("./../data/tunninkeskiarvoistaderivaatta.csv")
+    X, y = train2np("./../data/tunninminmax.csv")
     print("Data read. Training...")
     ## Jaa data opetus ja testaus dataan
     x_train, x_test, y_train, y_test = train_test_split(X,y, test_size=0.25)

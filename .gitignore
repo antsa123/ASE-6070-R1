@@ -300,3 +300,4 @@ __pycache__/
 
 # OpenCover UI analysis results
 OpenCover/
+/FlaskWebProject/FlaskWebProject1/env

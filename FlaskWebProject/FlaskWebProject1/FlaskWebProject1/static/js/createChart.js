@@ -329,13 +329,15 @@ Meteogram.prototype.getChartOptions = function () {
             }
         },
 
-        xAxis: [{ // Bottom X axis
+        xAxis: [
+        
+        { // Bottom X axis
             type: 'datetime',
             tickInterval: 2 * 36e5, // two hours
             minorTickInterval: 36e5, // one hour
             tickLength: 0,
-            gridLineWidth: 1,
-            gridLineColor: (Highcharts.theme && Highcharts.theme.background2) || '#F0F0F0',
+            minorGridLineColor: 'rgba(139,139,139,0.2)', // (Highcharts.theme && Highcharts.theme.background2) || '#F0F0F0',
+            minorGridLineWidth: 1,
             startOnTick: false,
             endOnTick: false,
             minPadding: 0,
@@ -343,7 +345,7 @@ Meteogram.prototype.getChartOptions = function () {
             offset: 30,
             showLastLabel: true,
             labels: {
-                format: '{value:%H}',
+                format: '{value:%H:00}',
             }
         }, { // Top X axis
             linkedTo: 0,
@@ -357,7 +359,7 @@ Meteogram.prototype.getChartOptions = function () {
             },
             opposite: true,
             tickLength: 20,
-            gridLineWidth: 1
+            gridLineWidth: 2
         }],
 
         yAxis: [{ // y axis
@@ -371,10 +373,10 @@ Meteogram.prototype.getChartOptions = function () {
                 },
                 x: -3
             },
-            plotLines: [{ // zero plane
+            plotLines: [{ // aurora plane
                 value: 0.5,
                 color: '#BBBBBB',
-                width: 1,
+                width: 2,
                 zIndex: 2
             }],
             // Custom positioner to provide even temperature ticks from top down
@@ -395,7 +397,7 @@ Meteogram.prototype.getChartOptions = function () {
             },
             maxPadding: 0.3,
             tickInterval: 1,
-            gridLineColor: (Highcharts.theme && Highcharts.theme.background2) || '#F0F0F0'
+            gridLineColor: 'rgba(139,139,139,0.2)'// (Highcharts.theme && Highcharts.theme.background2) || '#F0F0F0'
 
         }],
 
@@ -464,9 +466,10 @@ Meteogram.prototype.onChartLoad = function (chart) {
     this.drawWeatherSymbols(chart);
 
     var lightArr = this.lightLevel;
+    //console.log(lightArr); //Taustavarit
     var arrayLength = lightArr.length;
 
-    //Lis‰t‰‰n taustav‰rit kuvaajaan
+    //Lis‰t‰‰n taustavarit kuvaajaan
     for (var i = 0; i < arrayLength; i++) {
 
         //console.log(lightArr[i].from, lightArr[i].to, lightArr[i].color)
@@ -475,6 +478,15 @@ Meteogram.prototype.onChartLoad = function (chart) {
             from: lightArr[i].from,
             to: lightArr[i].to,
             color: lightArr[i].color
+            /*
+            color: {
+                linearGradient: { x1: 0, x2: 0, y1: 0, y2: 1 },
+                stops: [
+                    [0, '#55BF3B'], //green
+                    [1, '#DDDF0D'] //yellow
+                ]
+            }
+            */
         });
 
     }
@@ -534,6 +546,70 @@ Meteogram.prototype.parseYrData = function () {
     var sunRiseHour = sunRiseDateTime.getHours();
     var sunSetHour = sunSetDateTime.getHours();
 
+
+    // Taustavarin asetus auringonnousun ja -laskun mukaan
+
+    var taustavariPaivaa = 4; //Kuinka monelle paivalle taustavari asetaaan
+    var hamartyvaAikaTuntia = 2.5; //aika jonka ilta hamartyy ennen kuin pimea (ja aamu valoistuu)
+    var backgroundDayColor = '#d9ebf8'; //Paivan taustavari
+    var backgroundNightColor = '#071e30'; //Yon taustavari
+
+
+    //Lasketaan hamartyva ja valoistuva vari aamulle (aamulle ja illalle)
+    var backgroundEveningColor = {linearGradient: { x1: 0, x2: 1, y1: 0, y2: 0 },
+        stops: [
+            [0, backgroundDayColor],
+            [1, backgroundNightColor] 
+        ]
+    };
+    var backgroundMorningColor = {
+        linearGradient: { x1: 0, x2: 1, y1: 0, y2: 0 },
+        stops: [
+            [0, backgroundNightColor], 
+            [1, backgroundDayColor] 
+        ]
+    };
+
+    var minuuttiMs = 1000 * 60;
+    var tuntiMs = minuuttiMs * 60;
+    var vuorokausiMs = tuntiMs * 24;
+
+    var hamartyvaAikaMs = hamartyvaAikaTuntia * tuntiMs;
+
+    //Asetaan taustavari paiville
+    for (var i = 0; i <= taustavariPaivaa; i++){
+
+        var lastSS = sunSetTime + (i-1) * vuorokausiMs; //Edellinen Auringonlasku
+        var sR = sunRiseTime + i * vuorokausiMs; //Auringonnousu
+        var nextSS = sunSetTime + i * vuorokausiMs; //Seuraava Auringonlasku
+
+        //Edellinen Ilta hamartymaan auringonlaskun jalkeen
+        meteogram.lightLevel.push({
+            from: lastSS,
+            to: lastSS + hamartyvaAikaMs,
+            color: backgroundEveningColor
+        });
+        //edellinen yo tummaksi
+        meteogram.lightLevel.push({
+            from: lastSS + hamartyvaAikaMs - 4 * minuuttiMs, //4 min paallekkain, jotta ei nay valkoinen viiva
+            to: sR - hamartyvaAikaMs + 4 * minuuttiMs, //4 min paallekkain, jotta ei nay valkoinen viiva,
+            color: backgroundNightColor
+        });
+        //aamu vaalenemaan
+        meteogram.lightLevel.push({
+            from: sR - hamartyvaAikaMs,
+            to: sR,
+            color: backgroundMorningColor
+        });
+        //Paiva vaaleaksi
+        meteogram.lightLevel.push({
+            from: sR,
+            to: nextSS,
+            color: backgroundDayColor
+        });
+
+    }
+
     //console.log(sunTimes);
     //console.log(sunRiseHour,sunSetHour);
 
@@ -557,29 +633,21 @@ Meteogram.prototype.parseYrData = function () {
         var fromHour = new Date(from).getHours();
         var toHour = new Date(to).getHours();
 
-
-        //console.log(toDate.getHours());
-
+        /*
+        // Vanha tapa asettaa taustavari
         var backgroundLightColor = '#ffffff';
-
-
         //Laitetaan yˆaika tummaksi
         if (fromHour < sunRiseHour || toHour > sunSetHour || toHour == 0) {
             backgroundLightColor = '#d8d2dd';
 
         }
-
-
         meteogram.lightLevel.push({
             from: from,
             to: to,
             color: backgroundLightColor
         });
-        //console.log(meteogram.lightLevel);
+        */
 
-
-
-        // band
 
         // If it is more than an hour between points, show all symbols
         if (i === 0) {

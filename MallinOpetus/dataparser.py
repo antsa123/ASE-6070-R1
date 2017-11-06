@@ -1,5 +1,7 @@
 import numpy as np
+import urllib.request
 
+from time import sleep
 
 def nan_helper(y):
     """Apufunktio, jolla haetaan NaNien indeksit.
@@ -18,19 +20,21 @@ def nan_helper(y):
     return np.isnan(y), lambda z: z.nonzero()[0]
 
 
-def parse2np(fileobject, horizon):
+def parse2np(stringinfo, horizon):
     """Parsii viimeisimmasta tiedostosta luetut rivit numpy taulukoksi, jota kaytetaan ennustuksessa
        Jos filussa ei ole riittavasti paivia, nostaa ValueErrorin
-    Input: fileobject on pythonissa avattuna fmi:n sivuilta oleva latest.txt
+    Input: stringinfo on pythonissa avattuna fmi:n sivuilta oleva latest.txt, joka on dekoodattu merkkijonoksi
            horizon on kokonaisluku, joka kertoo kuinka monen paivan tiedot kerataan"""
-    strings = []
-    for line in fileobject:
+    strings = stringinfo.strip()
+    strings = strings.split("\n")
+    data = []
+    for line in strings:
         line = line.strip().split("\t")
-        strings.append(line[-1].split())
-    if len(strings) <  4 + horizon:
+        data.append(line[-1].split())
+    if len(data) <  4 + horizon:
         raise ValueError("Ei tarpeeksi tietoja filussa")
     numeric = []
-    for ll in strings[-horizon:]:
+    for ll in data[-horizon:]:
         numeric.append([int(x) for x in ll])
     return np.asarray(numeric).reshape((horizon * 24,))
 
@@ -60,12 +64,15 @@ def train2np(filepath, window = 48, horizon = 1, NaN_handling="linear_interp"):
 
 ## Suppeat toiminnallisuuden pikatestit, tehdaan, jos ajetaan mainina:
 if __name__ == "__main__":
-    filu = open("Esimerkki.txt")
-    array = parse2np(filu, 2)
-    print(array)
-    print(array.shape)
-    print(array.dtype)
-
-    X, y = train2np("./../data/tunninkeskiarvoistaderivaatta.csv")
-    print(X.shape)
-    print(y.shape)
+    r = urllib.request.urlopen("http://aurorasnow.fmi.fi/public_service/textfiles/NUR/latest.txt")
+    # sleep(1)
+    stringinfo = r.read().decode("utf-8")
+    # filu = open("Esimerkki.txt")
+    array = parse2np(stringinfo, 2)
+    # print(array)
+    # print(array.shape)
+    # print(array.dtype)
+    #
+    # X, y = train2np("./../data/tunninkeskiarvoistaderivaatta.csv")
+    # print(X.shape)
+    # print(y.shape)

@@ -6,6 +6,8 @@ from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
+from sklearn.externals import joblib
+
 from dataparser import train2np
 
 
@@ -74,8 +76,8 @@ def plot_results(names, models, train_data, window_size = 48, horizon = 48):
 
 if __name__ == "__main__":
     ## Alustetaan mallit listaan. Mallien tulee tayttaa sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
-    models = [LinearRegression(), RandomForestRegressor(n_estimators=10, verbose=10, n_jobs=1)]
-    names = ["LR", "RF"]
+    models = [LinearRegression()]#, RandomForestRegressor(n_estimators=10, verbose=10, n_jobs=1)]
+    names = ["LR"]#, "RF"]
     print("Reading data")
     ## Haetaan opetusdata tiedostosta
     X, y = train2np("./../data/tunninminmax.csv")
@@ -87,6 +89,8 @@ if __name__ == "__main__":
     print(scores)
     ## Tarkastele graafisesti ennustusten toimivuutta
     plot_results(names, models, X[int(0.99*len(X)):])
+
+    joblib.dump(models[0], "lr_model.pkl")
 
 
 

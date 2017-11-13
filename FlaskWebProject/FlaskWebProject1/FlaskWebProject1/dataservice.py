@@ -1,6 +1,7 @@
 import urllib.request
 from sklearn.externals import joblib
 import datetime
+import numpy as np
 
 ## MISTA POLUSTA MALLI LUETAAN MODUULIN SISAISESTI GLOBAALIKSI?
 classifier = joblib.load('lr_model.pkl')
@@ -9,7 +10,7 @@ def GetAuroraData():
     r = urllib.request.urlopen("http://aurorasnow.fmi.fi/public_service/textfiles/NUR/latest.txt")
     ## Tallenna tieto filusta ja dekoodaa se stringiksi.
     info = r.read().decode("utf-8")
-    content = parse2np(info)
+    content = parse2np(info,2)
     return content
 
 # Palauttaa saatiedot .xml-tiedostossa
@@ -28,7 +29,7 @@ def GetAurorasPrediction():
     dictionary = {"history":{}, "prediction":{}}
     dictionary["history"] = wrap_results_to_utc(data, "history")
     dictionary["prediction"] = wrap_results_to_utc(result, "prediction")
-    return dictionary
+    return str(dictionary)
 
 
 def parse2np(stringinfo, horizon):
@@ -67,9 +68,9 @@ def wrap_results_to_utc(results, zone):
     """Tekee tuloksista dictin, jossa timestamp:tulos"""
     today = datetime.datetime.now()
     today = datetime.datetime(year=today.year, month=today.month, day=today.day, hour=0, minute=0)
-    print(today.strftime("%d.%m.%y---%H:%M"))
+    #print(today.strftime("%d.%m.%y---%H:%M"))
     tomorrow = (today + datetime.timedelta(hours=1))
-    print(tomorrow.strftime("%d.%m.%y---%H:%M"))
+    #print(tomorrow.strftime("%d.%m.%y---%H:%M"))
     if zone == "history":
         dates = [(today + datetime.timedelta(hours=x)) for x in range(-47,1)]
     elif zone == "prediction":

@@ -1,5 +1,5 @@
 import urllib.request
-from sklearn import joblib
+from sklearn.externals import joblib
 
 ## MISTA POLUSTA MALLI LUETAAN MODUULIN SISAISESTI GLOBAALIKSI?
 classifier = joblib.load('lr_model.pkl')

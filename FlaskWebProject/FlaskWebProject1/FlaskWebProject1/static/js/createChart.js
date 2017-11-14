@@ -30,10 +30,13 @@ function Meteogram(xml, container) {
     // is loaded
     this.symbols = [];
     this.symbolNames = [];
+    this.timeSymbols = {};
     this.precipitations = [];
     this.winds = [];
     this.temperatures = [];
     this.pressures = [];
+    this.aurorasHistory = [];
+    this.aurorasPrediction = [];
 
     this.lightLevel = [];
 
@@ -42,7 +45,7 @@ function Meteogram(xml, container) {
     this.container = container;
 
     // Run
-    this.parseYrData();
+    //this.parseYrData();
 
 }
 /**
@@ -216,13 +219,17 @@ Meteogram.prototype.smoothLine = function (data) {
  */
 Meteogram.prototype.tooltipFormatter = function (tooltip) {
 
+    //console.log(tooltip);
+
     // Create the header with reference to the time interval
     var index = tooltip.points[0].point.index,
         ret = '<small>' + Highcharts.dateFormat('%A, %b %e, %H:%M', tooltip.x) + '-' +
             Highcharts.dateFormat('%H:%M', tooltip.points[0].point.to) + '</small><br>';
 
-    // Symbol text
-    ret += '<b>' + this.symbolNames[index] + '</b>';
+    // Symbol text ( jos asetettu)
+    if ( tooltip.points[0].point.symbolName ) {
+        ret += '<b>' + tooltip.points[0].point.symbolName + '</b>';
+    }
 
     ret += '<table>';
 
@@ -253,9 +260,11 @@ Meteogram.prototype.drawWeatherSymbols = function (chart) {
         var sprite,
             group;
 
-        if (meteogram.resolution > 36e5 || i % 2 === 0) {
+        //Piirretaan symbolit kolmen tunnin valein
+        if (meteogram.resolution > 36e5 || i % 3 === 0) {
 
-            sprite = symbolSprites[meteogram.symbols[i]];
+            //sprite = symbolSprites[meteogram.symbols[i]];
+            sprite = symbolSprites[point.symbolValue];
             if (sprite) {
 
                 // Create a group element that is positioned and clipped at 30 pixels width and height
@@ -413,31 +422,9 @@ Meteogram.prototype.getChartOptions = function () {
 
 
         series: [
-
-            /*
             {
-                name: 'Temperature',
-                data: this.temperatures,
-                type: 'spline',
-                marker: {
-                    enabled: false,
-                    states: {
-                        hover: {
-                            enabled: true
-                        }
-                    }
-                },
-                tooltip: {
-                    valueSuffix: '°C'
-                },
-                zIndex: 1,
-                color: '#FF3333',
-                negativeColor: '#48AFE8'
-            }, 
-            */
-            {
-                name: 'Rate of Magnetic Field Change',
-                data: this.temperatures,
+                name: 'Auroras prediction',
+                data: this.aurorasPrediction,
                 type: 'spline',
                 marker: {
                     enabled: false,
@@ -450,9 +437,29 @@ Meteogram.prototype.getChartOptions = function () {
                 tooltip: {
                     valueSuffix: 'nT/s'
                 },
-                zIndex: 2,
-                threshold: 0.5,
+                zIndex: 3,
+                threshold: 0.5, //Taman alapuolella negativeColor
                 color: '#3ed715',
+                negativeColor: '#999b98'
+            },
+            {
+                name: 'Auroras history',
+                data: this.aurorasHistory,
+                type: 'spline',
+                marker: {
+                    enabled: false,
+                    states: {
+                        hover: {
+                            enabled: true
+                        }
+                    }
+                },
+                tooltip: {
+                    valueSuffix: 'nT/s'
+                },
+                zIndex: 1,
+                threshold: 0.5,
+                color: '#006401',
                 negativeColor: '#999b98'
             }]
     };
@@ -490,15 +497,17 @@ Meteogram.prototype.onChartLoad = function (chart) {
         });
 
     }
+    var thisTime = new Date();
+    thisTime = thisTime.valueOf() - thisTime.getTimezoneOffset() * 60000 ;
 
-    /*
-        chart.xAxis[0].addPlotBand({
-            from: 0,
-            to: Date.UTC(2017, 9, 23),
-            color: '#FCFFC5',
-            id: 'plot-band-1'
-        }); 
-    */
+    //Historia harmaaksi
+    chart.xAxis[0].addPlotBand({
+        from: 0,
+        to: thisTime,
+        color: 'rgba(185,185,185,0.7)',
+        id: 'history'
+    }); 
+
 };
 
 /**
@@ -516,11 +525,71 @@ Meteogram.prototype.error = function () {
 };
 
 /**
+* Parsitaan revontulidata
+*
+*/
+Meteogram.prototype.parseFmiData = function (aurorasJson) {
+    var meteogram = this;
+    var minuuttiMs = 1000 * 60;
+    var tuntiMs = minuuttiMs * 60;
+    var vuorokausiMs = tuntiMs * 24;
+
+    //Historiadata
+    var jsonObject = aurorasJson.history;
+    for (var key in jsonObject) {
+        var keyTime = this.parseTime2UTC(key);
+        meteogram.aurorasHistory.push({
+            x: keyTime + 2 * tuntiMs,
+            y: parseInt(jsonObject[key], 10),
+            to: keyTime + 1 * tuntiMs
+        });
+    }
+
+    //Ennustusdata
+    var jsonObject = aurorasJson.prediction;
+    for (var key in jsonObject) {
+        var symbolName = null;
+        var symbolValue = null;
+        var keyTime = this.parseTime2UTC(key);
+        var thisTime = new Date();
+        var correctFrom = keyTime - thisTime.getTimezoneOffset() * 60000;
+        var correctTo = keyTime - thisTime.getTimezoneOffset() * 60000 + 1 * tuntiMs;
+
+        if (this.timeSymbols[correctFrom] != undefined ) {
+            symbolName = this.timeSymbols[correctFrom].symbolName;
+            symbolValue = this.timeSymbols[correctFrom].symbolValue;
+        }
+
+        meteogram.aurorasPrediction.push({
+            x: correctFrom,
+            y: parseInt(jsonObject[key], 10),
+            to: correctTo,
+            symbolName: symbolName,
+            symbolValue: symbolValue
+        });
+    }
+    /*
+    console.log(this.symbolNames);
+    console.log(this.symbols);
+    console.log(this.temperatures);
+    console.log(this.timeSymbols);
+    console.log(this.aurorasPrediction);
+    */
+}
+
+Meteogram.prototype.parseTime2UTC = function (string) {
+    var datetime = string + ' UTC';
+    datetime = string.replace(/-/g, '/').replace('T', ' ');
+    return Date.parse(datetime);
+}
+
+
+
+/**
  * Handle the data. This part of the code is not Highcharts specific, but deals with yr.no's
  * specific data format
  */
 Meteogram.prototype.parseYrData = function () {
-
     var meteogram = this,
         xml = this.xml,
         pointStart;
@@ -548,8 +617,8 @@ Meteogram.prototype.parseYrData = function () {
 
 
     // Taustavarin asetus auringonnousun ja -laskun mukaan
-
-    var taustavariPaivaa = 4; //Kuinka monelle paivalle taustavari asetaaan
+    var taustavariTaaksePaivaa = 3; //Kuinka monelle paivalle taustavari asetaaan taaksepain
+    var taustavariPaivaa = 4; //Kuinka monelle paivalle taustavari asetaaan eteenpain
     var hamartyvaAikaTuntia = 2.5; //aika jonka ilta hamartyy ennen kuin pimea (ja aamu valoistuu)
     var backgroundDayColor = '#d9ebf8'; //Paivan taustavari
     var backgroundNightColor = '#071e30'; //Yon taustavari
@@ -577,7 +646,7 @@ Meteogram.prototype.parseYrData = function () {
     var hamartyvaAikaMs = hamartyvaAikaTuntia * tuntiMs;
 
     //Asetaan taustavari paiville
-    for (var i = 0; i <= taustavariPaivaa; i++){
+    for (var i = -taustavariTaaksePaivaa; i <= taustavariPaivaa; i++){
 
         var lastSS = sunSetTime + (i-1) * vuorokausiMs; //Edellinen Auringonlasku
         var sR = sunRiseTime + i * vuorokausiMs; //Auringonnousu
@@ -656,8 +725,16 @@ Meteogram.prototype.parseYrData = function () {
 
         // Populate the parallel arrays
         // Pilvisyysikonit ja tekstit
-        meteogram.symbols.push(time.symbol['@attributes']['var'].match(/[0-9]{2}[dnm]?/)[0]); // eslint-disable-line dot-notation
+        var symbolVar = time.symbol['@attributes']['var'].match(/[0-9]{2}[dnm]?/)[0];
+        meteogram.symbols.push(symbolVar); // eslint-disable-line dot-notation
         meteogram.symbolNames.push(time.symbol['@attributes'].name);
+
+        var newUser = "user" + i;
+        var newValue = "value" + i;
+        meteogram.timeSymbols[from] = {
+            symbolValue: symbolVar,
+            symbolName: time.symbol['@attributes'].name
+        };
 
         meteogram.temperatures.push({
             x: from,
@@ -704,7 +781,7 @@ Meteogram.prototype.parseYrData = function () {
     this.smoothLine(this.temperatures);
 
     // Create the chart when the data is loaded
-    this.createChart();
+    //this.createChart();
 };
 // End of the Meteogram protype
 
@@ -723,6 +800,8 @@ if (!location.hash) {
 }
 */
 
+
+
 // Then get the XML file through Highcharts' jsonp provider, see
 // https://github.com/highcharts/highcharts/blob/master/samples/data/jsonp.php
 // for source code.
@@ -734,15 +813,47 @@ $.ajax({
         //console.log(xml);
         //var xml = document.getElementsByTagName("body")[0];
         //console.log(xml);
-        var jsonData = xmlToJson(xml).weatherdata;
+        var jsonWeatherData = xmlToJson(xml).weatherdata;
 
         //console.log(jsonData);
-
-
-        window.meteogram = new Meteogram(jsonData, 'container');
+        window.meteogram = new Meteogram(jsonWeatherData, 'container');
+        window.meteogram.parseYrData();
+        startIfAllLoaded();
     },
     error: Meteogram.prototype.error
 });
+
+
+$.ajax({
+    dataType: 'text',
+    url: '/api/aurorasprediction',
+    success: function (rawJson) {
+        var json = replaceAll(rawJson, "'", '"');
+        var jsonData = JSON.parse(json);
+        //console.log(jsonData);
+
+        window.meteogram.parseFmiData(jsonData);
+        startIfAllLoaded();
+    },
+    error: Meteogram.prototype.error
+});
+
+
+
+var loaded = 0;
+function startIfAllLoaded() {
+    window.loaded += 1;
+    if (window.loaded == 2) {
+        window.meteogram.createChart();
+    }
+}
+
+function escapeRegExp(str) {
+    return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+function replaceAll(str, find, replace) {
+    return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
 
 // Changes XML to JSON
 function xmlToJson(xml) {

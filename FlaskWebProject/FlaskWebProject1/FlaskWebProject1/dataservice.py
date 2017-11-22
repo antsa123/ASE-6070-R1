@@ -1,5 +1,7 @@
 import urllib.request
 from sklearn.externals import joblib
+import datetime
+import numpy as np
 
 ## MISTA POLUSTA MALLI LUETAAN MODUULIN SISAISESTI GLOBAALIKSI?
 classifier = joblib.load('lr_model.pkl')
@@ -8,7 +10,7 @@ def GetAuroraData():
     r = urllib.request.urlopen("http://aurorasnow.fmi.fi/public_service/textfiles/NUR/latest.txt")
     ## Tallenna tieto filusta ja dekoodaa se stringiksi.
     info = r.read().decode("utf-8")
-    content = parse2np(info)
+    content = parse2np(info,2)
     return content
 
 # Palauttaa saatiedot .xml-tiedostossa
@@ -24,8 +26,10 @@ def GetAuroras():
 def GetAurorasPrediction():
     data = GetAuroraData()
     result = predict_sequence(classifier, data)
-
-    return "{{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},}"
+    dictionary = {"history":{}, "prediction":{}}
+    dictionary["history"] = wrap_results_to_utc(data, "history")
+    dictionary["prediction"] = wrap_results_to_utc(result, "prediction")
+    return str(dictionary)
 
 
 def parse2np(stringinfo, horizon):
@@ -60,7 +64,22 @@ def predict_sequence(model, window_data, horizon = 48, prediction_len = 1):
         current = np.insert(current, len(window_data) - 1, results[i])
     return results
 
-def wrap_results_to_utc(results):
+def wrap_results_to_utc(results, zone):
     """Tekee tuloksista dictin, jossa timestamp:tulos"""
+    today = datetime.datetime.now()
+    today = datetime.datetime(year=today.year, month=today.month, day=today.day, hour=0, minute=0)
+    #print(today.strftime("%d.%m.%y---%H:%M"))
+    tomorrow = (today + datetime.timedelta(hours=1))
+    #print(tomorrow.strftime("%d.%m.%y---%H:%M"))
+    if zone == "history":
+        dates = [(today + datetime.timedelta(hours=x)) for x in range(-47,1)]
+    elif zone == "prediction":
+        dates = [(today + datetime.timedelta(hours=x)) for x in range(1,49)]
+    else:
+        dates = []
     stamps = {}
+    i = 0
+    for date in dates:
+        stamps[date.strftime("%Y-%m-%dT%H:%M:%S")] = results[i]
+        i += 1
     return stamps

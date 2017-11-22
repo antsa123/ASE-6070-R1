@@ -59,7 +59,11 @@ def train2np(filepath, window = 48, horizon = 1, NaN_handling="linear_interp"):
     return np.asarray(X), np.asarray(y).ravel()
 
 
-
+def get_data():
+    r = urllib.request.urlopen("http://aurorasnow.fmi.fi/public_service/textfiles/NUR/latest.txt")
+    stringinfo = r.read().decode("utf-8")
+    array = parse2np(stringinfo, 2)
+    return array
 
 
 ## Suppeat toiminnallisuuden pikatestit, tehdaan, jos ajetaan mainina:

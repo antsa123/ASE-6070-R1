@@ -8,7 +8,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
 from sklearn.externals import joblib
 
-from dataparser import train2np
+import datetime
+
+from dataparser import train2np, get_data
 
 
 def train_and_evalueate(names, models, x_train, y_train, x_test, y_test):
@@ -71,26 +73,54 @@ def plot_results(names, models, train_data, window_size = 48, horizon = 48):
         ax.legend(handles, labels)
     plt.show()
 
+def wrap_results_to_utc(results, zone):
+    """Tekee tuloksista dictin, jossa timestamp:tulos"""
 
+    today = datetime.datetime.now()
+    today = datetime.datetime(year=today.year, month=today.month, day=today.day, hour=0, minute=0)
+    print(today.strftime("%d.%m.%y---%H:%M"))
+    tomorrow = (today + datetime.timedelta(hours=1))
+    print(tomorrow.strftime("%d.%m.%y---%H:%M"))
+    if zone == "history":
+        dates = [(today + datetime.timedelta(hours=x)) for x in range(-47,1)]
+    elif zone == "prediction":
+        dates = [(today + datetime.timedelta(hours=x)) for x in range(1,49)]
+    else:
+        dates = []
+    stamps = {}
+    i = 0
+    for date in dates:
+        stamps[date.strftime("%Y-%m-%dT%H:%M:%S")] = results[i]
+        i += 1
+    return stamps
 
 
 if __name__ == "__main__":
-    ## Alustetaan mallit listaan. Mallien tulee tayttaa sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
-    models = [LinearRegression()]#, RandomForestRegressor(n_estimators=10, verbose=10, n_jobs=1)]
-    names = ["LR"]#, "RF"]
-    print("Reading data")
-    ## Haetaan opetusdata tiedostosta
-    X, y = train2np("./../data/tunninminmax.csv")
-    print("Data read. Training...")
-    ## Jaa data opetus ja testaus dataan
-    x_train, x_test, y_train, y_test = train_test_split(X,y, test_size=0.25)
-    ## Kouluta mallit ja arvioi niiden tarkkuutta
-    models, scores = train_and_evalueate(names, models, x_train, y_train, x_test, y_test)
-    print(scores)
-    ## Tarkastele graafisesti ennustusten toimivuutta
-    plot_results(names, models, X[int(0.99*len(X)):])
+    # ## Alustetaan mallit listaan. Mallien tulee tayttaa sklearnin kaltainen .fit(data) ja .predict(data) rajapinta.
+    # models = [LinearRegression()]#, RandomForestRegressor(n_estimators=10, verbose=10, n_jobs=1)]
+    # names = ["LR"]#, "RF"]
+    # print("Reading data")
+    # ## Haetaan opetusdata tiedostosta
+    # X, y = train2np("./../data/tunninminmax.csv")
+    # print("Data read. Training...")
+    # ## Jaa data opetus ja testaus dataan
+    # x_train, x_test, y_train, y_test = train_test_split(X,y, test_size=0.25)
+    # ## Kouluta mallit ja arvioi niiden tarkkuutta
+    # models, scores = train_and_evalueate(names, models, x_train, y_train, x_test, y_test)
+    # print(scores)
+    # ## Tarkastele graafisesti ennustusten toimivuutta
+    # plot_results(names, models, X[int(0.99*len(X)):])
+    #
+    # joblib.dump(models[0], "lr_model.pkl")
+    model =joblib.load('lr_model.pkl')
 
-    joblib.dump(models[0], "lr_model.pkl")
+    data = get_data()
+    results = predict_sequence(model, data)
+    dictionary = {"history":{}, "prediction":{}}
+    dictionary["history"] = wrap_results_to_utc(data, "history")
+    dictionary["prediction"] = wrap_results_to_utc(results, "prediction")
+    print(dictionary)
+
 
 
 

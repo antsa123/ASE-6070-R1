@@ -50,6 +50,7 @@
   <ItemGroup>
     <Content Include="FlaskWebProject1\static\js\createChart.js" />
     <Content Include="FlaskWebProject1\templates\index.html" />
+    <Content Include="lr_model.pkl" />
     <Content Include="requirements.txt" />
     <Content Include="FlaskWebProject1\static\content\bootstrap.css" />
     <Content Include="FlaskWebProject1\static\content\bootstrap.min.css" />

@@ -492,7 +492,7 @@ Meteogram.prototype.getChartOptions = function () {
                 zIndex: 3,
                 threshold: this.magneticFieldRateLimit, //Taman alapuolella negativeColor
                 color: '#3ed715',
-                negativeColor: '#999b98'
+                negativeColor: '#006eff'
             },
             {
                 name: 'Rate of Magnetic Field Change: History',
@@ -512,7 +512,7 @@ Meteogram.prototype.getChartOptions = function () {
                 zIndex: 1,
                 threshold: this.magneticFieldRateLimit,
                 color: '#006401',
-                negativeColor: '#999b98'
+                negativeColor: '#88a7e0'
             }]
     };
 };

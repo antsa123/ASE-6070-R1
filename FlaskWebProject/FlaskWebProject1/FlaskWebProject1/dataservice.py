@@ -6,11 +6,11 @@ import numpy as np
 ## MISTA POLUSTA MALLI LUETAAN MODUULIN SISAISESTI GLOBAALIKSI?
 classifier = joblib.load('lr_model.pkl')
 
-def GetAuroraData():
+def GetAuroraData(day):
     r = urllib.request.urlopen("http://aurorasnow.fmi.fi/public_service/textfiles/NUR/latest.txt")
     ## Tallenna tieto filusta ja dekoodaa se stringiksi.
     info = r.read().decode("utf-8")
-    content = parse2np(info,2)
+    content = parse2np(info,2,day)
     return content
 
 # Palauttaa saatiedot .xml-tiedostossa
@@ -23,8 +23,9 @@ def GetAuroras():
     return "{{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},{time: 124235298, value: 0.54},}"
 
 #Täällä Antti katsoo kristallipalloon ennustaa tulevaisuuden
-def GetAurorasPrediction():
-    data = GetAuroraData()
+def GetAurorasPrediction(date):
+    day = int(date[-2:])
+    data = GetAuroraData(day)
     result = predict_sequence(classifier, data)
     dictionary = {"history":{}, "prediction":{}}
     dictionary["history"] = wrap_results_to_utc(data, "history")
@@ -32,7 +33,7 @@ def GetAurorasPrediction():
     return str(dictionary)
 
 
-def parse2np(stringinfo, horizon):
+def parse2np(stringinfo, horizon, day):
     """Parsii viimeisimmasta tiedostosta luetut rivit numpy taulukoksi, jota kaytetaan ennustuksessa
        Jos filussa ei ole riittavasti paivia, nostaa ValueErrorin
     Input: stringinfo on pythonissa avattuna fmi:n sivuilta oleva latest.txt, joka on dekoodattu merkkijonoksi
@@ -45,10 +46,15 @@ def parse2np(stringinfo, horizon):
         data.append(line[-1].split())
     if len(data) <  4 + horizon:
         raise ValueError("Ei tarpeeksi tietoja filussa")
+    startRow = day + 1
+    endRow = day + 5
+    if endRow > len(data):
+        endRow = len(data)
+    range = endRow - startRow
     numeric = []
-    for ll in data[-horizon:]:
+    for ll in data[startRow:endRow]:
         numeric.append([int(x) for x in ll])
-    return np.asarray(numeric).reshape((horizon * 24,))
+    return np.asarray(numeric).reshape((range * 24,))
 
 def predict_sequence(model, window_data, horizon = 48, prediction_len = 1):
     """Ennustetaan window_datasta horizonin verran eteenpain.
@@ -56,6 +62,8 @@ def predict_sequence(model, window_data, horizon = 48, prediction_len = 1):
            window_data numpy taulukko, jossa ennustamiseen kaytetty data.
            horizon kokonaisluku, joka kertoo montako tuntia eteenpain ennustetaan
            prediction_len kokonaisluku, joka kertoo montako tuntia eteenpain ennustetaan kerralla."""
+    #Käytetään vain ensimmäistä kahta päivää datasta ennustamiseen
+    window_data = window_data[:48]
     results = np.zeros((horizon * prediction_len,))
     current = np.copy(window_data)
     for i in range(0,horizon,prediction_len):
@@ -72,7 +80,8 @@ def wrap_results_to_utc(results, zone):
     tomorrow = (today + datetime.timedelta(hours=1))
     #print(tomorrow.strftime("%d.%m.%y---%H:%M"))
     if zone == "history":
-        dates = [(today + datetime.timedelta(hours=x)) for x in range(-47,1)]
+        loppu = len(results) - 47
+        dates = [(today + datetime.timedelta(hours=x)) for x in range(-47,loppu)]
     elif zone == "prediction":
         dates = [(today + datetime.timedelta(hours=x)) for x in range(1,49)]
     else:

@@ -940,42 +940,50 @@ if (!location.hash) {
 // Then get the XML file through Highcharts' jsonp provider, see
 // https://github.com/highcharts/highcharts/blob/master/samples/data/jsonp.php
 // for source code.
-$.ajax({
-    dataType: 'xml',
-    url: '/api/weather',// location.hash.substr(1) + '&callback=?',
-    success: function (xml) {
-
-        //console.log(xml);
-        //var xml = document.getElementsByTagName("body")[0];
-        //console.log(xml);
-        var jsonWeatherData = xmlToJson(xml).weatherdata;
-
-        //console.log(jsonData);
-        window.meteogram = new Meteogram(jsonWeatherData, 'container');
-        window.meteogram.parseYrData();
-        startIfAllLoaded();
-    },
-    error: Meteogram.prototype.error
-});
-
-
-$.ajax({
-    dataType: 'text',
-    url: '/api/aurorasprediction',
-    success: function (rawJson) {
-        var json = replaceAll(rawJson, "'", '"');
-        var jsonData = JSON.parse(json);
-        //console.log(jsonData);
-
-        window.meteogram.parseFmiData(jsonData);
-        startIfAllLoaded();
-    },
-    error: Meteogram.prototype.error
-});
-
-
-
 var loaded = 0;
+initialize();
+
+function initialize(date) {
+    loaded = 0;
+
+    if (date === undefined) {
+        date = new Date().toISOString().split('T')[0];
+    }
+
+    $.ajax({
+        dataType: 'xml',
+        url: '/api/weather',// location.hash.substr(1) + '&callback=?',
+        success: function (xml) {
+
+            //console.log(xml);
+            //var xml = document.getElementsByTagName("body")[0];
+            //console.log(xml);
+            var jsonWeatherData = xmlToJson(xml).weatherdata;
+
+            //console.log(jsonData);
+            window.meteogram = new Meteogram(jsonWeatherData, 'container');
+            window.meteogram.parseYrData();
+            startIfAllLoaded();
+        },
+        error: Meteogram.prototype.error
+    });
+
+
+    $.ajax({
+        dataType: 'text',
+        url: '/api/aurorasprediction/' + date,
+        success: function (rawJson) {
+            var json = replaceAll(rawJson, "'", '"');
+            var jsonData = JSON.parse(json);
+            //console.log(jsonData);
+
+            window.meteogram.parseFmiData(jsonData);
+            startIfAllLoaded();
+        },
+        error: Meteogram.prototype.error
+    });
+}
+
 function startIfAllLoaded() {
     window.loaded += 1;
     if (window.loaded == 2) {
@@ -1028,3 +1036,15 @@ function xmlToJson(xml) {
     }
     return obj;
 };
+
+$(function () {
+    $("#datepicker").datepicker({
+        dateFormat: 'yy-mm-dd',
+        onSelect: function (dateText, inst) {
+            var date = $(this).val();
+            console.log(date);
+
+            initialize(date);
+        }
+    })
+});

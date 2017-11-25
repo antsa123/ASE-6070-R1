@@ -20,9 +20,9 @@ def get_auroras():
     except Exception as e:
         return e
 
-@app.route('/api/aurorasprediction')
-def get_auroras_prediction():
+@app.route('/api/aurorasprediction/<date>')
+def get_auroras_prediction(date):
     try:
-        return dataservice.GetAurorasPrediction()
+        return dataservice.GetAurorasPrediction(date)
     except Exception as e:
         return e

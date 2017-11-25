@@ -12,6 +12,7 @@
     <title>Revontulet</title>
 
     <link href="https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 
     <!-- Main css -->
     <link href="https://fonts.googleapis.com/css?family=Lora|Merriweather:300,400" rel="stylesheet">
@@ -25,8 +26,8 @@
 
 </head>
 <body>
-
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://code.highcharts.com/modules/windbarb.js"></script>
     <script src="https://code.highcharts.com/modules/exporting.js"></script>
@@ -40,7 +41,13 @@
         </div>
     </div>
     <div id="aurorasBox"></div>
-
+    <div style="margin-top: 100px; text-align: center">
+        <p>BETA</p>
+        <p>
+            Valitse ensimmäinen ennustettava päivä
+        </p>
+        <input type="text" id="datepicker">
+    </div>
 </body>
 
 </html>

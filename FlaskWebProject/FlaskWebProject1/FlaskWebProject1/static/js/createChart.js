@@ -475,7 +475,7 @@ Meteogram.prototype.getChartOptions = function () {
 
         series: [
             {
-                name: 'Auroras prediction',
+                name: 'Rate of Magnetic Field Change: history: Prediction',
                 data: this.aurorasPrediction,
                 type: 'spline',
                 marker: {
@@ -495,7 +495,7 @@ Meteogram.prototype.getChartOptions = function () {
                 negativeColor: '#999b98'
             },
             {
-                name: 'Auroras history',
+                name: 'Rate of Magnetic Field Change: History',
                 data: this.aurorasHistory,
                 type: 'spline',
                 marker: {
@@ -639,14 +639,8 @@ Meteogram.prototype.parseFmiData = function (aurorasJson) {
             //Asetetaan seuraavaksi mahdollisuudeksi nahda revontulet, jos mahdollisuutta ei ole ollut aikaisemmin
             var corFromDateTime = new Date(correctFrom + timeZoneOffsetMs);
             if (this.nextOpportunity == null && corFromDateTime > thisTime) {
-                this.nextOpportunity =
-                    {
-                        dateTime: corFromDateTime,
-                        value: mfrValue,
-                        symbolName: symbolName,
-                        symbolValue: symbolValue,
-                        aurorasVisible: aurorasVisible
-                    };
+                this.nextOpportunity = corFromDateTime;
+                writeNextAuroras();
             }          
         }
 
@@ -668,6 +662,17 @@ Meteogram.prototype.parseFmiData = function (aurorasJson) {
     console.log(this.timeSymbols);
     console.log(this.aurorasPrediction);
     */
+
+    if (this.nextOpportunity == null) {
+        $('#aurorasBox').html("There isn't northern lights visible during next two days.");
+    }
+
+    function writeNextAuroras() {
+        var seuraavaKerta = Highcharts.dateFormat('%A, %H:%M', correctFrom) + '-' + Highcharts.dateFormat('%H:%M', correctTo);
+ 
+        var teksti = '<br>'+"The next opportunity to see norhern lights: " + seuraavaKerta + ".";
+        $('#aurorasBox').html(teksti);
+    }
 
     function darkEnough(fromTime) {
         var pimeaaAstiTunti = meteogram.sunRiseTime.getHours() - hoursToSun;

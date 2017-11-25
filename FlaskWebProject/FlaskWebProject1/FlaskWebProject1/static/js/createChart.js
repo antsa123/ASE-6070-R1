@@ -38,6 +38,13 @@ function Meteogram(xml, container) {
     this.aurorasHistory = [];
     this.aurorasPrediction = [];
 
+    this.sunSetTime;
+    this.sunRiseTime;
+    this.magneticFieldRateLimit = 30; //Kuinka iso magneettikentan muutosnopeus vaaditaan
+    this.clearSkyList = ["Clear sky", "Partly cloudy", "Fair"]; // Lista pilvisyyksista jolloin revontulia mahdollisuus nahda
+    this.hoursBetweenSunAndDark = 2;//Kuinka monta tuntia taytyy kulua ennen / jalkeen aurinkonlaskun  
+    this.nextOpportunity = null;
+
     this.lightLevel = [];
 
     // Initialize
@@ -46,6 +53,33 @@ function Meteogram(xml, container) {
 
     // Run
     //this.parseYrData();
+
+    //Katsotaan onko parametreina annettu threshold
+    var query = location.search.substring(1);
+    var qs = parse_query_string(query);
+    if (qs.threshold) {
+        this.magneticFieldRateLimit = qs.threshold
+    }
+
+    function parse_query_string(query) {
+        var vars = query.split("&");
+        var query_string = {};
+        for (var i = 0; i < vars.length; i++) {
+            var pair = vars[i].split("=");
+            // If first entry with this name
+            if (typeof query_string[pair[0]] === "undefined") {
+                query_string[pair[0]] = decodeURIComponent(pair[1]);
+                // If second entry with this name
+            } else if (typeof query_string[pair[0]] === "string") {
+                var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
+                query_string[pair[0]] = arr;
+                // If third or later entry with this name
+            } else {
+                query_string[pair[0]].push(decodeURIComponent(pair[1]));
+            }
+        }
+        return query_string;
+    }
 
 }
 /**
@@ -221,15 +255,26 @@ Meteogram.prototype.tooltipFormatter = function (tooltip) {
 
     //console.log(tooltip);
 
+    var tekstinVari = '#3522d4';
+    var revontuletTeksti = 'Opportunity to see northern lights!';
+    var saaTeksti = 'Weather';
+
     // Create the header with reference to the time interval
     var index = tooltip.points[0].point.index,
         ret = '<small>' + Highcharts.dateFormat('%A, %b %e, %H:%M', tooltip.x) + '-' +
             Highcharts.dateFormat('%H:%M', tooltip.points[0].point.to) + '</small><br>';
-
+    /*
     // Symbol text ( jos asetettu)
     if ( tooltip.points[0].point.symbolName ) {
         ret += '<b>' + tooltip.points[0].point.symbolName + '</b>';
     }
+    */
+
+    //Otsikoksi revontulien nakyvyys
+    if (tooltip.points[0].point.aurorasVisible && tooltip.points[0].point.aurorasVisible == true) {
+        ret += '<b>' + '<tr><td style="color:' + tekstinVari + '">' + revontuletTeksti + '</td></tr>' + '</b>';
+    }
+
 
     ret += '<table>';
 
@@ -240,6 +285,13 @@ Meteogram.prototype.tooltipFormatter = function (tooltip) {
             ': </td><td style="white-space:nowrap">' + Highcharts.pick(point.point.value, point.y) +
             series.options.tooltip.valueSuffix + '</td></tr>';
     });
+
+    // Lisataan saatiedot jos olemassa
+    if (tooltip.points[0].point.symbolName) {
+        //ret += '<tr><td><span>\u25CF</span> ' + tooltip.points[0].point.symbolName + '</td></tr>';
+        ret += '<tr><td><span>\u25CF</span> ' + saaTeksti +
+            ': </td><td style="white-space:nowrap">' + tooltip.points[0].point.symbolName + '</td></tr>';
+    }
 
     // Close
     ret += '</table>';
@@ -383,9 +435,9 @@ Meteogram.prototype.getChartOptions = function () {
                 x: -3
             },
             plotLines: [{ // aurora plane
-                value: 0.5,
+                value: this.magneticFieldRateLimit,
                 color: '#BBBBBB',
-                width: 2,
+                width: 1,
                 zIndex: 2
             }],
             // Custom positioner to provide even temperature ticks from top down
@@ -438,7 +490,7 @@ Meteogram.prototype.getChartOptions = function () {
                     valueSuffix: 'nT/s'
                 },
                 zIndex: 3,
-                threshold: 0.5, //Taman alapuolella negativeColor
+                threshold: this.magneticFieldRateLimit, //Taman alapuolella negativeColor
                 color: '#3ed715',
                 negativeColor: '#999b98'
             },
@@ -458,7 +510,7 @@ Meteogram.prototype.getChartOptions = function () {
                     valueSuffix: 'nT/s'
                 },
                 zIndex: 1,
-                threshold: 0.5,
+                threshold: this.magneticFieldRateLimit,
                 color: '#006401',
                 negativeColor: '#999b98'
             }]
@@ -534,38 +586,79 @@ Meteogram.prototype.parseFmiData = function (aurorasJson) {
     var tuntiMs = minuuttiMs * 60;
     var vuorokausiMs = tuntiMs * 24;
 
-    //Historiadata
+    //Nykyinen aika, josta haetaan kellon siirto
+    var thisTime = new Date();
+    var timeZoneOffsetMs = thisTime.getTimezoneOffset() * 60000;
+
+
+    // Haetaan ehdot revontulien nakymiselle 
+    var hoursToSun = this.hoursBetweenSunAndDark;
+    var aurVisibleList = this.clearSkyList; 
+    var magneticFieldChangeLimit = this.magneticFieldRateLimit;
+
+
+    //Lisataan historiadata kuvaajaan
     var jsonObject = aurorasJson.history;
     for (var key in jsonObject) {
         var keyTime = this.parseTime2UTC(key);
+        var correctFrom = keyTime - timeZoneOffsetMs;
+        var correctTo = keyTime - timeZoneOffsetMs + tuntiMs;
+        var mfrValue = parseInt(jsonObject[key], 10);
+
         meteogram.aurorasHistory.push({
-            x: keyTime + 2 * tuntiMs,
-            y: parseInt(jsonObject[key], 10),
-            to: keyTime + 1 * tuntiMs
+            x: correctFrom,
+            y: mfrValue,
+            to: correctTo
         });
     }
 
-    //Ennustusdata
+    //Lisataan ennustusdata kuvaajaan tunti kerrallaan
     var jsonObject = aurorasJson.prediction;
     for (var key in jsonObject) {
         var symbolName = null;
         var symbolValue = null;
         var keyTime = this.parseTime2UTC(key);
-        var thisTime = new Date();
-        var correctFrom = keyTime - thisTime.getTimezoneOffset() * 60000;
-        var correctTo = keyTime - thisTime.getTimezoneOffset() * 60000 + 1 * tuntiMs;
+        var correctFrom = keyTime - timeZoneOffsetMs;
+        var correctTo = keyTime - timeZoneOffsetMs + tuntiMs;
+        var mfrValue = parseInt(jsonObject[key], 10);
+        var aurorasVisible = false;
+        var weatherClear = false;
 
+        //Tarkistetaan loytyyko pilvisyystietoa listasta
         if (this.timeSymbols[correctFrom] != undefined ) {
             symbolName = this.timeSymbols[correctFrom].symbolName;
             symbolValue = this.timeSymbols[correctFrom].symbolValue;
+
+            weatherClear = weatherClearEnough(symbolName);
         }
+
+        //Revontulet nakymaan, jos kaikki tasmaa
+        if (weatherClear && darkEnough(correctFrom) && magneticFieldRateEnough(mfrValue)) {
+            aurorasVisible = true;
+
+            //Asetetaan seuraavaksi mahdollisuudeksi nahda revontulet, jos mahdollisuutta ei ole ollut aikaisemmin
+            var corFromDateTime = new Date(correctFrom + timeZoneOffsetMs);
+            if (this.nextOpportunity == null && corFromDateTime > thisTime) {
+                this.nextOpportunity =
+                    {
+                        dateTime: corFromDateTime,
+                        value: mfrValue,
+                        symbolName: symbolName,
+                        symbolValue: symbolValue,
+                        aurorasVisible: aurorasVisible
+                    };
+            }          
+        }
+
+        //aurorasVisible = darkEnough(correctFrom);
 
         meteogram.aurorasPrediction.push({
             x: correctFrom,
-            y: parseInt(jsonObject[key], 10),
+            y: mfrValue,
             to: correctTo,
             symbolName: symbolName,
-            symbolValue: symbolValue
+            symbolValue: symbolValue,
+            aurorasVisible: aurorasVisible
         });
     }
     /*
@@ -575,6 +668,36 @@ Meteogram.prototype.parseFmiData = function (aurorasJson) {
     console.log(this.timeSymbols);
     console.log(this.aurorasPrediction);
     */
+
+    function darkEnough(fromTime) {
+        var pimeaaAstiTunti = meteogram.sunRiseTime.getHours() - hoursToSun;
+        var pimeaaJalkeenTunti = meteogram.sunSetTime.getHours() + hoursToSun;
+
+        var dateTime = new Date(fromTime);
+        var tunti = dateTime.getHours();
+
+        if (tunti < pimeaaAstiTunti ) {
+            return true;
+
+        } else if (tunti > pimeaaJalkeenTunti ) {
+            return true;
+        }
+        return false;
+    }
+
+    function weatherClearEnough(symbolN) {
+        if (aurVisibleList.indexOf(symbolN) > -1) {
+            return true;
+        }
+        return false;
+    }
+
+    function magneticFieldRateEnough(mfr) {
+        if (mfr >= magneticFieldChangeLimit) {
+            return true;
+        }
+        return false;
+    }
 }
 
 Meteogram.prototype.parseTime2UTC = function (string) {
@@ -598,6 +721,10 @@ Meteogram.prototype.parseYrData = function () {
         return this.error();
     }
 
+    //Nykyinen aika, josta haetaan kellon siirto
+    var thisTime = new Date();
+    var timeZoneOffsetMs = thisTime.getTimezoneOffset() * 60000;
+
     // Parsitaan auringonlasku ja -nousu
     var sunTimes = xml.sun['@attributes'];
 
@@ -605,15 +732,18 @@ Meteogram.prototype.parseYrData = function () {
     var sunSetTime = sunTimes.set + ' UTC';
 
     sunRiseTime = sunRiseTime.replace(/-/g, '/').replace('T', ' ');
-    sunRiseTime = Date.parse(sunRiseTime);
+    sunRiseTime = Date.parse(sunRiseTime) + timeZoneOffsetMs;
     sunSetTime = sunSetTime.replace(/-/g, '/').replace('T', ' ');
-    sunSetTime = Date.parse(sunSetTime);
+    sunSetTime = Date.parse(sunSetTime) + timeZoneOffsetMs;
 
     var sunRiseDateTime = new Date(sunRiseTime);
     var sunSetDateTime = new Date(sunSetTime);
 
     var sunRiseHour = sunRiseDateTime.getHours();
     var sunSetHour = sunSetDateTime.getHours();
+
+    this.sunRiseTime = sunRiseDateTime;
+    this.sunSetTime = sunSetDateTime;
 
 
     // Taustavarin asetus auringonnousun ja -laskun mukaan

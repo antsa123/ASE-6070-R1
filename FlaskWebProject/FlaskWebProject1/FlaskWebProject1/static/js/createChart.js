@@ -25,7 +25,7 @@
  *   as per the wind direction.
  */
 
-function Meteogram(xml, container) {
+function Meteogram() {
     // Parallel arrays for the chart data, these are populated as the XML/JSON file
     // is loaded
     this.symbols = [];
@@ -48,8 +48,8 @@ function Meteogram(xml, container) {
     this.lightLevel = [];
 
     // Initialize
-    this.xml = xml;
-    this.container = container;
+    this.xml = [];
+    this.container = '';
 
     // Run
     //this.parseYrData();
@@ -944,6 +944,9 @@ var loaded = 0;
 initialize();
 
 function initialize(date) {
+    window.meteogram = new Meteogram();
+    window.meteogram['container'] = 'container';
+
     loaded = 0;
 
     if (date === undefined) {
@@ -961,7 +964,8 @@ function initialize(date) {
             var jsonWeatherData = xmlToJson(xml).weatherdata;
 
             //console.log(jsonData);
-            window.meteogram = new Meteogram(jsonWeatherData, 'container');
+            // window.meteogram = new Meteogram(jsonWeatherData, 'container');
+            window.meteogram['xml'] = jsonWeatherData;
             window.meteogram.parseYrData();
             startIfAllLoaded();
         },
